@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Traffic Guard | System Monitor</title>
+    <style>
+        /* The "Hacker" Aesthetic - Dark Mode & Monospace */
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px;
+        }
+
+        h1 { border-bottom: 2px solid #2ea043; padding-bottom: 10px; }
+
+        .monitor-box {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            width: 400px;
+            margin-top: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .status-indicator {
+            height: 15px;
+            width: 15px;
+            border-radius: 50%;
+            background-color: #3fb950; /* Green */
+            display: inline-block;
+            box-shadow: 0 0 10px #3fb950;
+        }
+
+        .blocked { background-color: #f85149; box-shadow: 0 0 10px #f85149; } /* Red */
+
+        .log-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+            border-top: 1px solid #30363d;
+            padding-top: 10px;
+            height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-item {
+            font-size: 0.9em;
+            padding: 5px 0;
+            border-bottom: 1px solid #21262d;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .count-badge {
+            background: #238636;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #238636;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #2ea043; }
+    </style>
+</head>
+<body>
+
+    <h1>🛡️ TRAFFIC GUARD SYSTEM</h1>
+
+    <div class="monitor-box">
+        <div class="status-row">
+            <span>System Status:</span>
+            <span id="system-status" class="status-indicator"></span>
+        </div>
+        <div class="status-row">
+            <span>Active Connections:</span>
+            <span id="total-connections">0</span>
+        </div>
+    </div>
+
+    <div class="monitor-box">
+        <h3>Live Traffic Analysis</h3>
+        <ul id="traffic-list" class="log-list">
+            <li class="log-item">Waiting for data...</li>
+        </ul>
+    </div>
+
+    <button onclick="spamServer()">⚠️ Simulate Attack (Spam Request)</button>
+
+<script>
+    async function fetchAnalytics() {
+        try {
+            const response = await fetch('http://localhost:5000/api/analytics');
+            const data = await response.json();
+            updateDashboard(data);
+        } catch (error) { console.error("Server Offline?"); }
+    }
+
+    function updateDashboard(data) {
+        const list = document.getElementById('traffic-list');
+        const totalDisplay = document.getElementById('total-connections');
+        
+        list.innerHTML = ''; 
+        let total = 0;
+
+        data.forEach(entry => {
+            total += entry.count;
+            
+            const li = document.createElement('li');
+            li.className = 'log-item';
+            
+            // We add a specific ID to the button so we know which IP to ban
+            li.innerHTML = `
+                <span>IP: ${entry._id} <span class="count-badge">${entry.count} reqs</span></span>
+                <button 
+                    style="background: #da3633; padding: 5px 10px; margin-left:10px; font-size: 0.8em;"
+                    onclick="banUser('${entry._id}')">
+                    🔨 BAN
+                </button>
+            `;
+            list.appendChild(li);
+        });
+
+        totalDisplay.innerText = total;
+    }
+
+    // <<< NEW FUNCTION >>>
+    async function banUser(ip) {
+        if(!confirm(`Are you sure you want to PERMANENTLY BAN ${ip}?`)) return;
+
+        await fetch('http://localhost:5000/api/ban', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip: ip })
+        });
+
+        alert(`🔨 ${ip} has been eliminated.`);
+        // Note: They will disappear from the list after 60s when their old logs expire
+    }
+
+    async function spamServer() {
+        try {
+            const res = await fetch('http://localhost:5000/api/resource');
+            const data = await res.json();
+            if(data.error) alert(data.error); // Show the specific error (Limit or Ban)
+        } catch (err) { console.log(err); }
+    }
+
+    setInterval(fetchAnalytics, 2000);
+    fetchAnalytics();
+</script>
+</body>
+</html>
